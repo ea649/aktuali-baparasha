@@ -428,10 +428,25 @@ body.topic { height: 100vh; height: 100dvh; overflow: hidden; }
   box-shadow: var(--shadow); container-type: size; display: grid; place-items: center;
 }
 .studio-in {
-  position: relative; flex: none; width: max(100cqw, 150cqh); height: max(100cqh, 66.667cqw);
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: max(100cqw, 150cqh); height: max(100cqh, 66.667cqw);
   background: center / 100% 100% no-repeat; container-type: size;
 }
-.studio:fullscreen { border-radius: 0; }
+.studio { cursor: zoom-in; }
+.studio:fullscreen, .studio.max { border-radius: 0; cursor: zoom-out; }
+body.studio-max { overflow: hidden; }
+body.studio-max .side-nav, body.studio-max .tp-head, body.studio-max .bg-deco, body.studio-max .blob { visibility: hidden; }
+.studio.max { position: fixed; inset: 0; z-index: 150; height: 100%; width: 100%; aspect-ratio: auto; }
+.studio-fs {
+  position: absolute; bottom: 14px; left: 14px; z-index: 3; display: flex; align-items: center; gap: 8px;
+  border: 0; border-radius: 999px; padding: 8px 18px 8px 10px; font: inherit; font-size: clamp(14px, 2vh, 18px); font-weight: 500;
+  background: rgba(255, 255, 255, .92); color: var(--navy); box-shadow: 0 8px 20px -8px rgba(0, 0, 0, .5); cursor: pointer;
+  transition: transform .2s, opacity .3s;
+}
+.studio-fs .ic { width: 1.8em; height: 1.8em; }
+.studio-fs:hover { transform: scale(1.08); }
+.studio:fullscreen .studio-fs, .studio.max .studio-fs { opacity: 0; }
+.studio:fullscreen:hover .studio-fs, .studio.max:hover .studio-fs { opacity: .85; }
+@media (hover: none) { .studio.max .studio-fs { opacity: .85; } }
 .onair {
   position: absolute; top: 5%; right: 26%; display: flex; align-items: center; gap: .5em;
   padding: .3em .9em; border-radius: .5em; font-size: 2.6cqw; font-weight: 700; color: #fff; letter-spacing: 1px;

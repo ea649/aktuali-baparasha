@@ -219,6 +219,7 @@
     const present = setupPresenter(t);
     if (landscape) setupSlider(t, present);
     if (t.game) setupGame(t.game);
+    if (t.studio) setupStudio();
   }
   function showView(id) {
     document.querySelectorAll(".tab").forEach(b => { const on = b.dataset.v === id; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
@@ -261,7 +262,7 @@
     const open = n => { show(n); P.classList.add("open"); P.requestFullscreen?.().catch(() => {}); };
     const close = () => { P.classList.remove("open"); if (document.fullscreenElement) document.exitFullscreen(); };
     $("#presentBtn").addEventListener("click", () => {
-      if (t.studio) { showView("studio"); $("#studio").requestFullscreen?.().catch(() => {}); return; }
+      if (t.studio) { showView("studio"); toggleStudio(); return; }
       if (t.kind === "video") showView("video");
       const v = t.kind === "video" && $(".video-frame video, .video-frame iframe");
       if (v) { v.requestFullscreen?.().catch(() => {}); v.play?.(); }
@@ -331,7 +332,25 @@
         </div>
         <div class="studio-name">${esc(t.title)} · פרשת ${esc(S.parasha)}</div>
       </div>
+      <button class="studio-fs" id="studioFs">${ic("fullscreen")}<span>מסך מלא</span></button>
     </div>`;
+  }
+  /* הגדלת האולפן למסך שלם — ובאייפון, שאין בו מסך מלא לרכיב, ממלאים את החלון */
+  function toggleStudio() {
+    const s = $("#studio");
+    const on = document.fullscreenElement === s || s.classList.contains("max");
+    if (on) { s.classList.remove("max"); if (document.fullscreenElement) document.exitFullscreen(); }
+    else if (s.requestFullscreen) s.requestFullscreen().catch(() => s.classList.add("max"));
+    else s.classList.add("max");
+  }
+  function setupStudio() {
+    $("#studio").addEventListener("click", toggleStudio);
+    document.addEventListener("keydown", e => { if (e.key === "Escape") $("#studio").classList.remove("max"); });
+    const label = () => { const on = document.fullscreenElement === $("#studio") || $("#studio").classList.contains("max");
+      $("#studioFs span").textContent = on ? "יציאה ממסך מלא" : "מסך מלא";
+      document.body.classList.toggle("studio-max", $("#studio").classList.contains("max")); };
+    document.addEventListener("fullscreenchange", label);
+    new MutationObserver(label).observe($("#studio"), { attributes: true, attributeFilter: ["class"] });
   }
 
   /* ---------- משחק נכון / לא נכון ---------- */
