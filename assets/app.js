@@ -61,14 +61,6 @@
   })();
   window.confetti = confetti;
 
-  /* ---------- הופעה בגלילה ---------- */
-  function reveal(sel) {
-    const io = new IntersectionObserver(es => es.forEach(e => {
-      if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
-    }), { threshold: .12 });
-    document.querySelectorAll(sel).forEach((el, i) => { el.style.transitionDelay = (i % 6) * 70 + "ms"; io.observe(el); });
-  }
-
   /* ---------- הטיה תלת־ממדית ---------- */
   function tilt(el, target = el) {
     el.addEventListener("pointermove", e => {
@@ -78,23 +70,6 @@
       target.style.setProperty("--mx", px * 100 + "%"); target.style.setProperty("--my", py * 100 + "%");
     });
     el.addEventListener("pointerleave", () => { target.style.transform = ""; });
-  }
-
-  function topbar(isHome) {
-    return `<header class="topbar">
-      <a href="index.html"><img class="brand" src="assets/img/shalhevet.webp" alt="שלהבות חב&quot;ד"></a>
-      <div class="actions">
-        ${isHome ? "" : `<a class="pill" href="index.html">${ic("home")} <span class="lbl">כל הנושאים</span></a>`}
-        <button class="pill" id="fsBtn" title="מסך מלא">${ic("fullscreen")} <span class="lbl">מסך מלא</span></button>
-      </div>
-    </header>`;
-  }
-
-  function footer() {
-    return `<footer>
-      <img src="assets/img/logo.webp" alt="אקטואלי בפרשה">
-      <small>אקטואלי בפרשה · שלהבות חב"ד · פרשת ${esc(S.parasha)}</small>
-    </footer>`;
   }
 
   function bindFullscreen() {
@@ -155,8 +130,7 @@
             <img class="brand-sm" src="assets/img/shalhevet.webp" alt="שלהבות חב&quot;ד">
             <div class="logo-wrap">
               <img class="logo" src="assets/img/logo.webp" alt="אקטואלי בפרשה">
-              <span class="chip"><small>פרשת</small>${esc(S.parasha)}</span>
-              <span class="hint">לוחצים על נושא — ומציגים לכיתה או מורידים להדפסה</span>
+              <span class="parasha">פרשת ${esc(S.parasha)}</span>
             </div>
           </div>
         </div>
@@ -167,69 +141,88 @@
     setTimeout(() => { const r = $(".t-logo .logo").getBoundingClientRect(); confetti(r.left + r.width / 2, r.top + r.height / 2, 110); }, 1500);
   }
 
-  /* ================= דף נושא ================= */
+  /* ================= דף נושא — הכל במסך אחד, עם סרגל נושאים בצד ================= */
+  function sideNav(cur) {
+    return `<nav class="side-nav" aria-label="נושאים">
+      <a class="sn-btn" href="index.html">${ic("home")}<span>לדף הראשי</span></a>
+      ${S.topics.map((o, i) => `<a href="${o.id}.html" class="sn-item t-${o.id}${o === cur ? " cur" : ""}" style="--i:${i}"${o === cur ? ' aria-current="page"' : ""}>
+        <span class="sn-t">${esc(o.title)}</span><img class="sn-char" src="${o.char}" alt="">
+      </a>`).join("")}
+      <button class="sn-btn" id="fsBtn" title="מסך מלא">${ic("fullscreen")}<span>מסך מלא</span></button>
+    </nav>`;
+  }
+
   function renderTopic(t) {
     document.title = `${t.title} · ${S.parasha} · אקטואלי בפרשה`;
+    document.body.classList.add("topic");
     document.documentElement.style.setProperty("--c", t.color);
     document.documentElement.style.setProperty("--soft", t.soft);
-    const idx = S.topics.indexOf(t);
     const letters = t.title.split(" ").map((w, i) => `<span class="letter" style="animation-delay:${.15 + i * .15}s">${esc(w)}</span>`).join(" ");
     const fileName = `אקטואלי בפרשה - ${t.title} - ${S.parasha}.pdf`;
     const landscape = t.kind === "slides";
 
-    let special = "";
-    if (t.kind === "video") {
-      special = `<section class="block">
-        <h2 class="block-title">${ic("clapper")} הסרטון</h2>
-        <div class="video-frame"><span class="live-dot">LIVE</span>${videoHTML(t)}</div>
-      </section>`;
-    }
-    if (t.game) special += gameHTML(t.game);
-    if (t.interview) special += interviewHTML(t.interview);
-
     const pages = t.pages.map((p, i) => `
       <button class="page-thumb" data-i="${i}" aria-label="הצגת עמוד ${i + 1}">
-        <span class="num">${i + 1}</span>
-        <img src="${p}" alt="${esc(t.title)} עמוד ${i + 1}" loading="lazy">
-        <span class="zoom">${ic("zoom")} הצגה על המסך</span>
+        <span class="pt-in">
+          <img src="${p}" alt="${esc(t.title)} עמוד ${i + 1}">
+          <span class="num">${i + 1}</span>
+          <span class="zoom">${ic("zoom")} הצגה על המסך</span>
+        </span>
       </button>`).join("");
 
-    const nav = S.topics.map(o => `<a href="${o.id}.html" class="${o === t ? "cur" : ""}"><img src="${o.char}" alt="">${esc(o.title)}</a>`).join("");
-    const next = S.topics[(idx + 1) % S.topics.length];
+    /* מה שמוצג בגוף הדף — כמה תצוגות עם לשוניות, כדי שהכל ייכנס במסך */
+    const views = [];
+    if (t.kind === "video") views.push({ id: "video", label: "הסרטון", icon: "clapper", html: `<div class="video-frame"><span class="live-dot">LIVE</span>${videoHTML(t)}</div>` });
+    if (t.game) views.push({ id: "game", label: "משחק בכיתה", icon: "gamepad", html: gameHTML(t.game) });
+    if (t.interview) views.push({ id: "interview", label: "הראיון", icon: "headphones", html: interviewHTML(t.interview) });
+    views.push({ id: "pages", label: t.pagesTitle || (landscape ? "השקופיות" : "הדפים להדפסה"), icon: landscape ? "present" : "print",
+      html: `<div class="pages${landscape ? " landscape" : ""}" style="--n:${t.pages.length}">${pages}</div>` });
+    const tabs = views.length < 2 ? "" : `<div class="tabs" role="tablist">${views.map((v, i) =>
+      `<button class="tab${i ? "" : " on"}" role="tab" data-v="${v.id}" aria-selected="${!i}">${ic(v.icon)} ${esc(v.label)}</button>`).join("")}</div>`;
 
     document.body.insertAdjacentHTML("beforeend", `
-      ${topbar(false)}
-      <main>
-        <section class="topic-hero">
-          <div class="panel">
-            <span class="eyebrow">${ic(t.icon)} פרשת ${esc(S.parasha)}</span>
-            <h1>${letters}</h1>
-            <p class="sub">${esc(t.tagline)}</p>
-            <div class="btns">
-              <button class="btn" id="presentBtn">${ic("present", "ic i")} הצגה בכיתה</button>
-              <a class="btn light" href="${t.pdf}" download="${esc(fileName)}">${ic("download", "ic i")} הורדה להדפסה</a>
-              <a class="btn light" href="${t.pdf}" target="_blank" rel="noopener">${ic("print", "ic i")} פתיחת PDF</a>
+      <div class="tp">
+        ${sideNav(t)}
+        <main class="tp-main">
+          <section class="tp-head">
+            <svg class="doodle wig" viewBox="0 0 100 100" style="left:24%;top:12%;width:4.5vmin" aria-hidden="true">${DOODLE.star}</svg>
+            <svg class="doodle" viewBox="0 0 100 100" style="left:30%;bottom:14%;width:3.5vmin" aria-hidden="true">${DOODLE.spark}</svg>
+            <div class="tp-info">
+              <span class="eyebrow">${ic(t.icon)} פרשת ${esc(S.parasha)}</span>
+              <h1>${letters}</h1>
+              <p class="sub">${esc(t.tagline)}</p>
             </div>
-          </div>
-          <div class="char-wrap"><img src="${t.char}" alt=""></div>
-        </section>
-        ${special}
-        <section class="block">
-          <h2 class="block-title">${ic(landscape ? "present" : "print")} ${t.pagesTitle ? esc(t.pagesTitle) : landscape ? "השקופיות" : "הדפים להדפסה"}</h2>
-          <div class="pages ${landscape ? "landscape" : ""}">${pages}</div>
-        </section>
-        <nav class="topic-nav" aria-label="נושאים">${nav}</nav>
-        <section class="block" style="text-align:center">
-          <a class="btn" href="${next.id}.html" style="background:${next.color}">לנושא הבא: ${esc(next.title)} ←</a>
-        </section>
-      </main>
-      ${footer()}
+            <div class="tp-actions">
+              <div class="btns">
+                <button class="btn" id="presentBtn">${ic("present")} הצגה בכיתה</button>
+                <a class="btn light" href="${t.pdf}" download="${esc(fileName)}">${ic("download")} הורדה להדפסה</a>
+                <a class="btn light" href="${t.pdf}" target="_blank" rel="noopener">${ic("print")} פתיחת PDF</a>
+              </div>
+              ${tabs}
+            </div>
+            <img class="tp-char" src="${t.char}" alt="">
+          </section>
+          <section class="tp-body">${views.map((v, i) => `<div class="view view-${v.id}" data-v="${v.id}"${i ? " hidden" : ""}>${v.html}</div>`).join("")}</section>
+        </main>
+      </div>
       ${presenterHTML(t)}`);
 
-    reveal(".page-thumb");
+    document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => showView(b.dataset.v)));
+    /* העמודים נמתחים בדיוק לגובה שנשאר מתחת לכותרת */
+    const body = $(".tp-body");
+    const fit = () => body.style.setProperty("--bodyH", body.clientHeight + "px");
+    fit(); addEventListener("resize", fit);
+    /* בטלפון הסרגל אופקי — מגלגלים אותו לנושא הנוכחי */
+    if (matchMedia("(max-width: 760px)").matches) { const nav = $(".side-nav"), cur = $(".sn-item.cur"); nav.scrollLeft = cur.offsetLeft - (nav.clientWidth - cur.offsetWidth) / 2; }
+    new ResizeObserver(fit).observe(body);
+    document.querySelectorAll(".page-thumb").forEach((p, i) => setTimeout(() => p.classList.add("in"), 350 + i * 120));
     setupPresenter(t);
     if (t.game) setupGame(t.game);
     if (t.interview) setupInterview();
+  }
+  function showView(id) {
+    document.querySelectorAll(".tab").forEach(b => { const on = b.dataset.v === id; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
+    document.querySelectorAll(".view").forEach(v => { v.hidden = v.dataset.v !== id; });
   }
 
   /* ---------- סרטון: יוטיוב / וימאו / mp4, ובלי קישור — השקופית ---------- */
@@ -268,6 +261,7 @@
     const open = n => { show(n); P.classList.add("open"); P.requestFullscreen?.().catch(() => {}); };
     const close = () => { P.classList.remove("open"); if (document.fullscreenElement) document.exitFullscreen(); };
     $("#presentBtn").addEventListener("click", () => {
+      if (t.kind === "video") showView("video");
       const v = t.kind === "video" && $(".video-frame video, .video-frame iframe");
       if (v) { v.requestFullscreen?.().catch(() => {}); v.play?.(); }
       else if (t.kind === "video") { P.classList.add("open"); img.src = t.poster; $("#pCount").textContent = ""; P.requestFullscreen?.().catch(() => {}); }
@@ -289,9 +283,7 @@
 
   /* ---------- משחק נכון / לא נכון ---------- */
   function gameHTML(g) {
-    return `<section class="block">
-      <h2 class="block-title">${ic("gamepad")} משחק בכיתה: נכון או לא נכון?</h2>
-      <div class="game" id="game">
+    return `<div class="game" id="game">
         <p class="intro">${esc(g.intro)} <b>${esc(g.instruction)}</b></p>
         <div class="progress">${g.items.map(() => "<i></i>").join("")}</div>
         <div class="stage"><span class="qnum" id="gNum"></span><p class="q" id="gQ"></p></div>
@@ -305,8 +297,7 @@
           <button class="btn light" id="gReveal">${ic("eye")} חשיפת התשובה</button>
           <button class="btn" id="gNext">הבא ←</button>
         </div>
-      </div>
-    </section>`;
+      </div>`;
   }
   function setupGame(g) {
     let i = 0;
@@ -345,18 +336,14 @@
 
   /* ---------- ראיון (כרטיסים מתהפכים) ---------- */
   function interviewHTML(iv) {
-    return `<section class="block">
-      <h2 class="block-title">${ic("headphones")} ${esc(iv.title)}</h2>
-      <p style="margin:-6px 0 18px">לוחצים על כרטיס של המראיינת — ומגלים מה משה ענה.</p>
-      <div class="interview">${iv.items.map((it, k) => `
+    return `<div class="interview" aria-label="${esc(iv.title)}">${iv.items.map((it, k) => `
         <button class="flip" aria-label="שאלה ${k + 1}">
           <div class="inner">
             <div class="face front"><div class="who">${ic("headphones")} מראיינת:</div><div class="txt">${esc(it.q)}</div><span class="hint">לחצו להפוך ↻</span></div>
             <div class="face back"><div class="who">${ic("mic")} משה:</div><div class="txt">${esc(it.a)}</div></div>
           </div>
         </button>`).join("")}
-      </div>
-    </section>`;
+      </div>`;
   }
   function setupInterview() {
     document.querySelectorAll(".flip").forEach(f => f.addEventListener("click", () => f.classList.toggle("open")));
