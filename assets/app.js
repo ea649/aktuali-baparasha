@@ -4,18 +4,21 @@
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const topicId = document.body.dataset.topic;
 
+  /* ---------- אייקון תלת־ממדי מתוך assets/icons ---------- */
+  const ic = (name, cls = "ic") => `<img class="${cls}" src="assets/icons/${name}.png" alt="" aria-hidden="true">`;
+
   /* ---------- קישוטי רקע ---------- */
   function decorate() {
     const deco = document.createElement("div");
     deco.className = "bg-deco";
-    const items = ["⭐", "✨", "💫", "📜", "🌟", "💜", "💛"];
-    for (let i = 0; i < 14; i++) {
+    const items = ["star", "sparkle", "scroll", "star", "heart", "sparkle"];
+    for (let i = 0; i < 12; i++) {
       const s = document.createElement("span");
-      s.textContent = items[i % items.length];
+      s.innerHTML = ic(items[i % items.length]);
       s.style.left = Math.random() * 100 + "vw";
-      s.style.animationDuration = 14 + Math.random() * 16 + "s";
+      s.style.animationDuration = 16 + Math.random() * 16 + "s";
       s.style.animationDelay = -Math.random() * 30 + "s";
-      s.style.fontSize = 16 + Math.random() * 22 + "px";
+      s.style.fontSize = 14 + Math.random() * 16 + "px";
       deco.appendChild(s);
     }
     document.body.prepend(deco);
@@ -67,22 +70,22 @@
   }
 
   /* ---------- הטיה תלת־ממדית ---------- */
-  function tilt(el) {
+  function tilt(el, target = el) {
     el.addEventListener("pointermove", e => {
       const r = el.getBoundingClientRect();
       const px = (e.clientX - r.left) / r.width, py = (e.clientY - r.top) / r.height;
-      el.style.transform = `perspective(900px) rotateY(${(px - .5) * 10}deg) rotateX(${(.5 - py) * 10}deg) translateY(-6px)`;
-      el.style.setProperty("--mx", px * 100 + "%"); el.style.setProperty("--my", py * 100 + "%");
+      target.style.transform = `perspective(900px) rotateY(${(px - .5) * 12}deg) rotateX(${(.5 - py) * 12}deg) translateY(-6px) scale(1.02)`;
+      target.style.setProperty("--mx", px * 100 + "%"); target.style.setProperty("--my", py * 100 + "%");
     });
-    el.addEventListener("pointerleave", () => { el.style.transform = ""; });
+    el.addEventListener("pointerleave", () => { target.style.transform = ""; });
   }
 
   function topbar(isHome) {
     return `<header class="topbar">
       <a href="index.html"><img class="brand" src="assets/img/shalhevet.webp" alt="שלהבות חב&quot;ד"></a>
       <div class="actions">
-        ${isHome ? "" : `<a class="pill" href="index.html">🏠 <span class="lbl">כל הנושאים</span></a>`}
-        <button class="pill" id="fsBtn" title="מסך מלא">⛶ <span class="lbl">מסך מלא</span></button>
+        ${isHome ? "" : `<a class="pill" href="index.html">${ic("home")} <span class="lbl">כל הנושאים</span></a>`}
+        <button class="pill" id="fsBtn" title="מסך מלא">${ic("fullscreen")} <span class="lbl">מסך מלא</span></button>
       </div>
     </header>`;
   }
@@ -101,32 +104,67 @@
   }
 
   /* ================= עמוד הבית ================= */
+  /* קשקושי גיר לבנים כמו בלוח בקנבה (viewBox 0 0 100 100) */
+  const DOODLE = {
+    star: `<path d="M50 8 61 38H93L67 57 77 88 50 69 23 88 33 57 7 38H39Z"/>`,
+    dash: `<path d="M6 30H40M2 48H34M10 66H38"/>`,
+    smile: `<circle cx="50" cy="50" r="40"/><path d="M35 38v6M65 38v6M30 60Q50 80 70 60"/>`,
+    crown: `<polyline points="10,80 14,26 34,54 50,14 66,54 86,26 90,80 10,80"/><circle cx="50" cy="66" r="5"/>`,
+    wave: `<path d="M4 50v0M11 42v16M18 30v40M25 44v12M32 18v64M39 36v28M46 26v48M53 42v16M60 30v40M67 40v20M74 22v56M81 45v10M88 36v28M95 47v6"/>`,
+    squiggle: `<path d="M8 92C28 62 18 42 44 36S70 12 92 14M18 98C40 72 40 56 62 50S84 30 98 34"/>`,
+    spark: `<path d="M50 8V34M50 66V92M8 50H34M66 50H92M22 22 38 38M62 62 78 78M78 22 62 38M38 62 22 78"/>`
+  };
+  const TILE_DOODLES = {
+    pgisha: [["star", "left:5%;top:44%;width:20cqmin", "wig"], ["dash", "left:20%;top:47%;width:14cqmin"], ["smile", "right:7%;bottom:7%;width:16cqmin", "wig"]],
+    play: [["spark", "right:8%;top:42%;width:18cqmin", "wig"]],
+    live: [["star", "right:7%;bottom:12%;width:16cqmin", "wig"]],
+    aluf: [["crown", "left:34%;top:5%;width:20cqmin", "wig"], ["star", "right:9%;top:52%;width:12cqmin"]],
+    podcast: [["wave", "right:4%;bottom:22%;width:44cqmin;height:22cqmin"]],
+    ted: [["squiggle", "right:4%;bottom:6%;width:46cqmin"], ["spark", "right:12%;top:34%;width:12cqmin", "wig"]]
+  };
+  const doodles = id => (TILE_DOODLES[id] || []).map(([d, pos, cls = ""]) =>
+    `<svg class="doodle ${cls}" viewBox="0 0 100 100" style="${pos}" aria-hidden="true">${DOODLE[d]}</svg>`).join("");
+
+  /* כותרת בשתי שורות, כמו בקנבה: "פרשה / PLAY", "פגישה עם / הפרשה" */
+  function titleLines(title) {
+    const w = title.split(" ");
+    const cut = w.length > 2 ? 2 : 1;
+    const line = ws => `<span>${ws.map(x => /^[A-Za-z]+$/.test(x) ? `<b class="en">${esc(x)}</b>` : esc(x)).join(" ")}</span>`;
+    return line(w.slice(0, cut)) + (w.length > cut ? line(w.slice(cut)) : "");
+  }
+
   function renderHome() {
     document.title = `אקטואלי בפרשה · ${S.parasha}`;
-    const cards = S.topics.map(t => `
-      <a class="card" href="${t.id}.html" style="--c:${t.color};--soft:${t.soft}">
-        <span class="icon">${t.icon}</span>
-        <h2>${esc(t.title)}</h2>
-        <div class="tag">${esc(t.tagline)}</div>
-        <img class="char" src="${t.char}" alt="" loading="lazy">
-        <span class="go">←</span>
-        <span class="shine"></span>
+    document.body.classList.add("home");
+    const tiles = S.topics.map((t, i) => `
+      <a class="tile t-${t.id}" href="${t.id}.html" style="--i:${i}" aria-label="${esc(t.title)} — ${esc(t.tagline)}">
+        <div class="tile-in">
+          ${doodles(t.id)}
+          <img class="char" src="${t.char}" alt="">
+          <div class="tile-txt"><h2>${titleLines(t.title)}</h2>${ic(t.icon, "t-icon")}<p>${esc(t.tagline)}</p></div>
+          <span class="go">←</span>
+          <span class="shine"></span>
+        </div>
       </a>`).join("");
     document.body.insertAdjacentHTML("beforeend", `
-      ${topbar(true)}
-      <main>
-        <section class="hero">
-          <img class="logo" id="logo" src="assets/img/logo.webp" alt="אקטואלי בפרשה">
-          <div><span class="parasha-chip"><small>פרשת השבוע</small> ${esc(S.parasha)}</span></div>
-          <p class="lead">כל החומרים של השבוע במקום אחד — לוחצים על נושא, מציגים לכיתה או מורידים להדפסה.</p>
-        </section>
-        <section class="grid">${cards}</section>
+      <main class="bento">
+        ${tiles}
+        <div class="tile t-logo" id="logoTile" style="--i:6">
+          <div class="tile-in">
+            <span class="corner a"></span><span class="corner b"></span>
+            <img class="brand-sm" src="assets/img/shalhevet.webp" alt="שלהבות חב&quot;ד">
+            <div class="logo-wrap">
+              <img class="logo" src="assets/img/logo.webp" alt="אקטואלי בפרשה">
+              <span class="chip"><small>פרשת</small>${esc(S.parasha)}</span>
+              <span class="hint">לוחצים על נושא — ומציגים לכיתה או מורידים להדפסה</span>
+            </div>
+          </div>
+        </div>
       </main>
-      ${footer()}`);
-    document.querySelectorAll(".card").forEach(tilt);
-    reveal(".card");
-    $("#logo").addEventListener("click", e => confetti(e.clientX, e.clientY));
-    setTimeout(() => confetti(innerWidth / 2, 160, 90), 700);
+      <button class="fs-float" id="fsBtn" title="מסך מלא" aria-label="מסך מלא">${ic("fullscreen")}</button>`);
+    document.querySelectorAll("a.tile").forEach(a => tilt(a, $(".tile-in", a)));
+    $("#logoTile").addEventListener("click", e => confetti(e.clientX, e.clientY));
+    setTimeout(() => { const r = $(".t-logo .logo").getBoundingClientRect(); confetti(r.left + r.width / 2, r.top + r.height / 2, 110); }, 1500);
   }
 
   /* ================= דף נושא ================= */
@@ -142,7 +180,7 @@
     let special = "";
     if (t.kind === "video") {
       special = `<section class="block">
-        <h2 class="block-title">🎬 הסרטון</h2>
+        <h2 class="block-title">${ic("clapper")} הסרטון</h2>
         <div class="video-frame"><span class="live-dot">LIVE</span>${videoHTML(t)}</div>
       </section>`;
     }
@@ -153,7 +191,7 @@
       <button class="page-thumb" data-i="${i}" aria-label="הצגת עמוד ${i + 1}">
         <span class="num">${i + 1}</span>
         <img src="${p}" alt="${esc(t.title)} עמוד ${i + 1}" loading="lazy">
-        <span class="zoom">🔍 הצגה על המסך</span>
+        <span class="zoom">${ic("zoom")} הצגה על המסך</span>
       </button>`).join("");
 
     const nav = S.topics.map(o => `<a href="${o.id}.html" class="${o === t ? "cur" : ""}"><img src="${o.char}" alt="">${esc(o.title)}</a>`).join("");
@@ -164,20 +202,20 @@
       <main>
         <section class="topic-hero">
           <div class="panel">
-            <span class="eyebrow">${t.icon} פרשת ${esc(S.parasha)}</span>
+            <span class="eyebrow">${ic(t.icon)} פרשת ${esc(S.parasha)}</span>
             <h1>${letters}</h1>
             <p class="sub">${esc(t.tagline)}</p>
             <div class="btns">
-              <button class="btn" id="presentBtn"><span class="i">📺</span> הצגה בכיתה</button>
-              <a class="btn light" href="${t.pdf}" download="${esc(fileName)}"><span class="i">⬇️</span> הורדה להדפסה</a>
-              <a class="btn light" href="${t.pdf}" target="_blank" rel="noopener"><span class="i">🖨️</span> פתיחת PDF</a>
+              <button class="btn" id="presentBtn">${ic("present", "ic i")} הצגה בכיתה</button>
+              <a class="btn light" href="${t.pdf}" download="${esc(fileName)}">${ic("download", "ic i")} הורדה להדפסה</a>
+              <a class="btn light" href="${t.pdf}" target="_blank" rel="noopener">${ic("print", "ic i")} פתיחת PDF</a>
             </div>
           </div>
           <div class="char-wrap"><img src="${t.char}" alt=""></div>
         </section>
         ${special}
         <section class="block">
-          <h2 class="block-title">${t.pagesTitle ? "📄 " + esc(t.pagesTitle) : landscape ? "🖼️ השקופיות" : "📄 הדפים להדפסה"}</h2>
+          <h2 class="block-title">${ic(landscape ? "present" : "print")} ${t.pagesTitle ? esc(t.pagesTitle) : landscape ? "השקופיות" : "הדפים להדפסה"}</h2>
           <div class="pages ${landscape ? "landscape" : ""}">${pages}</div>
         </section>
         <nav class="topic-nav" aria-label="נושאים">${nav}</nav>
@@ -252,19 +290,19 @@
   /* ---------- משחק נכון / לא נכון ---------- */
   function gameHTML(g) {
     return `<section class="block">
-      <h2 class="block-title">🎮 משחק בכיתה: נכון או לא נכון?</h2>
+      <h2 class="block-title">${ic("gamepad")} משחק בכיתה: נכון או לא נכון?</h2>
       <div class="game" id="game">
         <p class="intro">${esc(g.intro)} <b>${esc(g.instruction)}</b></p>
         <div class="progress">${g.items.map(() => "<i></i>").join("")}</div>
         <div class="stage"><span class="qnum" id="gNum"></span><p class="q" id="gQ"></p></div>
         <div class="sides">
-          <button class="side yes" id="gYes">✔ נכון</button>
-          <button class="side no" id="gNo">✘ לא נכון</button>
+          <button class="side yes" id="gYes">${ic("check")} נכון</button>
+          <button class="side no" id="gNo">${ic("cross")} לא נכון</button>
         </div>
         <div class="answer" id="gAns"></div>
         <div class="nav">
           <button class="btn light" id="gPrev">→ הקודם</button>
-          <button class="btn light" id="gReveal">👀 חשיפת התשובה</button>
+          <button class="btn light" id="gReveal">${ic("eye")} חשיפת התשובה</button>
           <button class="btn" id="gNext">הבא ←</button>
         </div>
       </div>
@@ -282,11 +320,11 @@
       bars.forEach((b, k) => { b.className = k < i ? "done" : k === i ? "cur" : ""; });
       [yes, no].forEach(b => b.classList.remove("dim", "win"));
       ans.textContent = ""; ans.classList.remove("show");
-      $("#gNext").textContent = i === g.items.length - 1 ? "🏆 סיום" : "הבא ←";
+      $("#gNext").innerHTML = i === g.items.length - 1 ? "סיום " + ic("trophy") : "הבא ←";
     };
     const revealAns = () => {
       const it = g.items[i];
-      if (it.a === null) { ans.textContent = "💬 נדון בזה יחד בכיתה!"; ans.classList.add("show"); return; }
+      if (it.a === null) { ans.innerHTML = ic("sparkle") + " נדון בזה יחד בכיתה!"; ans.classList.add("show"); return; }
       const good = it.a ? yes : no, bad = it.a ? no : yes;
       bad.classList.add("dim"); good.classList.add("win");
       ans.textContent = it.note; ans.style.color = it.a ? "#15803d" : "#be123c";
@@ -308,13 +346,13 @@
   /* ---------- ראיון (כרטיסים מתהפכים) ---------- */
   function interviewHTML(iv) {
     return `<section class="block">
-      <h2 class="block-title">🎙️ ${esc(iv.title)}</h2>
+      <h2 class="block-title">${ic("headphones")} ${esc(iv.title)}</h2>
       <p style="margin:-6px 0 18px">לוחצים על כרטיס של המראיינת — ומגלים מה משה ענה.</p>
       <div class="interview">${iv.items.map((it, k) => `
         <button class="flip" aria-label="שאלה ${k + 1}">
           <div class="inner">
-            <div class="face front"><div class="who">🎧 מראיינת:</div><div class="txt">${esc(it.q)}</div><span class="hint">לחצו להפוך ↻</span></div>
-            <div class="face back"><div class="who">🎙️ משה:</div><div class="txt">${esc(it.a)}</div></div>
+            <div class="face front"><div class="who">${ic("headphones")} מראיינת:</div><div class="txt">${esc(it.q)}</div><span class="hint">לחצו להפוך ↻</span></div>
+            <div class="face back"><div class="who">${ic("mic")} משה:</div><div class="txt">${esc(it.a)}</div></div>
           </div>
         </button>`).join("")}
       </div>

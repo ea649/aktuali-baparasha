@@ -14,7 +14,7 @@ window.SITE = {
       color: "#ee2f62",
       soft: "#fcd7e1",
       char: "assets/img/pgisha.webp",
-      icon: "💗",
+      icon: "heart",
       kind: "slides",
       pages: ["assets/m/pgisha-1.webp", "assets/m/pgisha-2.webp"],
       pdf: "assets/m/pgisha.pdf"
@@ -26,7 +26,7 @@ window.SITE = {
       color: "#f5a400",
       soft: "#ffeec2",
       char: "assets/img/play.webp",
-      icon: "🎲",
+      icon: "dice",
       kind: "slides",
       pages: ["assets/m/play-1.webp"],
       pdf: "assets/m/play.pdf",
@@ -54,7 +54,7 @@ window.SITE = {
       color: "#14a9c4",
       soft: "#cdeef4",
       char: "assets/img/live.webp",
-      icon: "🎬",
+      icon: "clapper",
       kind: "video",
       // קישור לסרטון: יוטיוב / וימאו / קובץ mp4. כשריק — מוצגת שקופית הסרטון מקנבה.
       video: "",
@@ -70,7 +70,7 @@ window.SITE = {
       color: "#aa479a",
       soft: "#f3d9ee",
       char: "assets/img/aluf.webp",
-      icon: "🏅",
+      icon: "medal",
       kind: "print",
       pages: ["assets/m/aluf-1.webp"],
       pdf: "assets/m/aluf.pdf"
@@ -82,7 +82,7 @@ window.SITE = {
       color: "#7b4fc4",
       soft: "#e6dcf7",
       char: "assets/img/podcast.webp",
-      icon: "🎧",
+      icon: "headphones",
       kind: "print",
       pages: ["assets/m/podcast-1.webp", "assets/m/podcast-2.webp"],
       pdf: "assets/m/podcast.pdf",
@@ -106,7 +106,7 @@ window.SITE = {
       color: "#f07c12",
       soft: "#fde3c8",
       char: "assets/img/ted.webp",
-      icon: "🕯️",
+      icon: "mic",
       kind: "print",
       pages: ["assets/m/ted-1.webp", "assets/m/ted-2.webp", "assets/m/ted-3.webp"],
       pdf: "assets/m/ted.pdf"
