@@ -174,9 +174,9 @@
     const views = [];
     if (t.kind === "video") views.push({ id: "video", label: "הסרטון", icon: "clapper", html: `<div class="video-frame"><span class="live-dot">LIVE</span>${videoHTML(t)}</div>` });
     if (t.game) views.push({ id: "game", label: "משחק בכיתה", icon: "gamepad", html: gameHTML(t.game) });
-    if (t.interview) views.push({ id: "interview", label: "הראיון", icon: "headphones", html: interviewHTML(t.interview) });
+    if (t.studio) views.push({ id: "studio", label: "האולפן", icon: "mic", html: studioHTML(t) });
     views.push({ id: "pages", label: t.pagesTitle || (landscape ? "השקופיות" : "הדפים להדפסה"), icon: landscape ? "present" : "print",
-      html: `<div class="pages${landscape ? " landscape" : ""}" style="--n:${t.pages.length}">${pages}</div>` });
+      html: landscape ? sliderHTML(t) : `<div class="pages" style="--n:${t.pages.length}">${pages}</div>` });
     const tabs = views.length < 2 ? "" : `<div class="tabs" role="tablist">${views.map((v, i) =>
       `<button class="tab${i ? "" : " on"}" role="tab" data-v="${v.id}" aria-selected="${!i}">${ic(v.icon)} ${esc(v.label)}</button>`).join("")}</div>`;
 
@@ -216,9 +216,9 @@
     if (matchMedia("(max-width: 760px)").matches) { const nav = $(".side-nav"), cur = $(".sn-item.cur"); nav.scrollLeft = cur.offsetLeft - (nav.clientWidth - cur.offsetWidth) / 2; }
     new ResizeObserver(fit).observe(body);
     document.querySelectorAll(".page-thumb").forEach((p, i) => setTimeout(() => p.classList.add("in"), 350 + i * 120));
-    setupPresenter(t);
+    const present = setupPresenter(t);
+    if (landscape) setupSlider(t, present);
     if (t.game) setupGame(t.game);
-    if (t.interview) setupInterview();
   }
   function showView(id) {
     document.querySelectorAll(".tab").forEach(b => { const on = b.dataset.v === id; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
@@ -261,11 +261,12 @@
     const open = n => { show(n); P.classList.add("open"); P.requestFullscreen?.().catch(() => {}); };
     const close = () => { P.classList.remove("open"); if (document.fullscreenElement) document.exitFullscreen(); };
     $("#presentBtn").addEventListener("click", () => {
+      if (t.studio) { showView("studio"); $("#studio").requestFullscreen?.().catch(() => {}); return; }
       if (t.kind === "video") showView("video");
       const v = t.kind === "video" && $(".video-frame video, .video-frame iframe");
       if (v) { v.requestFullscreen?.().catch(() => {}); v.play?.(); }
       else if (t.kind === "video") { P.classList.add("open"); img.src = t.poster; $("#pCount").textContent = ""; P.requestFullscreen?.().catch(() => {}); }
-      else open(0);
+      else open(+($(".slider")?.dataset.i || 0));
     });
     document.querySelectorAll(".page-thumb").forEach(b => b.addEventListener("click", () => open(+b.dataset.i)));
     $("#pClose").addEventListener("click", close);
@@ -279,6 +280,58 @@
       if (e.key === "ArrowRight") show(i - 1);
       if (e.key === "Escape") close();
     });
+    return open;
+  }
+
+  /* ---------- שקופיות: אחת גדולה במסך, ומעבר בין השקופיות ---------- */
+  function sliderHTML(t) {
+    const many = t.pages.length > 1;
+    return `<div class="slider" data-i="0">
+      ${many ? `<button class="sl-nav" id="slPrev" aria-label="השקופית הקודמת">→</button>` : ""}
+      <button class="sl-stage" id="slStage" aria-label="הצגה על המסך">
+        <img id="slImg" src="${t.pages[0]}" alt="${esc(t.title)} שקופית 1">
+        <span class="zoom">${ic("zoom")} הצגה על המסך</span>
+      </button>
+      ${many ? `<button class="sl-nav" id="slNext" aria-label="השקופית הבאה">←</button>
+      <div class="sl-thumbs">${t.pages.map((p, i) => `<button class="sl-th${i ? "" : " on"}" data-i="${i}" aria-label="שקופית ${i + 1}"><img src="${p}" alt=""><b>${i + 1}</b></button>`).join("")}</div>` : ""}
+    </div>`;
+  }
+  function setupSlider(t, present) {
+    const box = $(".slider"), img = $("#slImg");
+    let i = 0;
+    const go = n => {
+      const dir = n > i ? 1 : -1;
+      i = (n + t.pages.length) % t.pages.length;
+      box.dataset.i = i;
+      img.src = t.pages[i]; img.alt = `${t.title} שקופית ${i + 1}`;
+      img.style.setProperty("--dir", dir);
+      img.classList.remove("swap"); void img.offsetWidth; img.classList.add("swap");
+      document.querySelectorAll(".sl-th").forEach(b => b.classList.toggle("on", +b.dataset.i === i));
+    };
+    $("#slStage").addEventListener("click", () => present(i));
+    $("#slPrev")?.addEventListener("click", () => go(i - 1));
+    $("#slNext")?.addEventListener("click", () => go(i + 1));
+    document.querySelectorAll(".sl-th").forEach(b => b.addEventListener("click", () => go(+b.dataset.i)));
+    document.addEventListener("keydown", e => {
+      if ($("#presenter").classList.contains("open") || box.closest(".view").hidden) return;
+      if (e.key === "ArrowLeft") go(i + 1);
+      if (e.key === "ArrowRight") go(i - 1);
+    });
+  }
+
+  /* ---------- אולפן פודקאסט: רקע מאחורי שני התלמידים שמשדרים ---------- */
+  function studioHTML(t) {
+    /* התמונה תמיד ממלאת את המסגרת, והכיתובים יושבים במקום קבוע עליה (בתוך טבעת הניאון) */
+    return `<div class="studio" id="studio">
+      <div class="studio-in" style="background-image:url(${t.studio})">
+        <span class="onair"><i></i>בשידור</span>
+        <div class="ring">
+          <img src="assets/img/logo.webp" alt="אקטואלי בפרשה">
+          <div class="eq" aria-hidden="true">${"<i></i>".repeat(11)}</div>
+        </div>
+        <div class="studio-name">${esc(t.title)} · פרשת ${esc(S.parasha)}</div>
+      </div>
+    </div>`;
   }
 
   /* ---------- משחק נכון / לא נכון ---------- */
@@ -332,21 +385,6 @@
     });
     $("#gPrev").addEventListener("click", () => show(i - 1));
     show(0);
-  }
-
-  /* ---------- ראיון (כרטיסים מתהפכים) ---------- */
-  function interviewHTML(iv) {
-    return `<div class="interview" aria-label="${esc(iv.title)}">${iv.items.map((it, k) => `
-        <button class="flip" aria-label="שאלה ${k + 1}">
-          <div class="inner">
-            <div class="face front"><div class="who">${ic("headphones")} מראיינת:</div><div class="txt">${esc(it.q)}</div><span class="hint">לחצו להפוך ↻</span></div>
-            <div class="face back"><div class="who">${ic("mic")} משה:</div><div class="txt">${esc(it.a)}</div></div>
-          </div>
-        </button>`).join("")}
-      </div>`;
-  }
-  function setupInterview() {
-    document.querySelectorAll(".flip").forEach(f => f.addEventListener("click", () => f.classList.toggle("open")));
   }
 
   /* ---------- הפעלה ---------- */
