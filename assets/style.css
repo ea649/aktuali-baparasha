@@ -213,7 +213,7 @@ a.tile:hover .shine { opacity: 1; }
 .pb-name {
   display: inline-flex; align-items: baseline; gap: .3em; border: 0; border-radius: 999px; padding: .25em .9em .3em;
   background: var(--navy); color: #fff; font: inherit; font-weight: 500; white-space: nowrap; cursor: pointer;
-  box-shadow: 0 .22em 0 -.04em var(--yellow); transition: transform .2s;
+  transition: transform .2s;
 }
 .pb-name:hover { transform: translateY(-2px); }
 .pb-name small { font-size: .62em; opacity: .75; font-weight: 400; }
