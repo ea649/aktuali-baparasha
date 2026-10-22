@@ -26,7 +26,7 @@
   })();
   const chosen = new URLSearchParams(location.search).get("p");
   const pid = chosen && PR.names[chosen] ? chosen : thisWeek;
-  const P = { id: pid, name: PR.names[pid][0], now: pid === thisWeek, idx: cycle.findIndex(c => c.id === pid), mats: S.materials[pid] || {} };
+  const P = { id: pid, name: PR.names[pid][0], now: pid === thisWeek, idx: cycle.findIndex(c => c.id === pid), mats: {} };
   /* קישור לדף אחר שנשאר על אותה פרשה (בפרשת השבוע — בלי פרמטר, כדי שתתחלף לבד) */
   const q = id => id === thisWeek ? "" : `?p=${id}`;
   const pageFile = topicId ? `${topicId}.html` : "index.html";
@@ -39,13 +39,10 @@
     const base = `assets/p/${P.id}/`;
     return { ...t, ...m, pages: (m.pages || []).map(f => base + f), pdf: m.pdf && base + m.pdf, poster: m.poster && base + m.poster };
   }
-  /* הפרשה הקרובה שיש לה כבר חומרים — לקישור "בינתיים" */
-  function latestWithMaterials(topic) {
-    const has = id => S.materials[id] && (!topic || S.materials[id][topic]);
-    const before = cycle.slice(0, Math.max(P.idx, 0)).reverse().find(c => has(c.id));
-    return before ? before.id : Object.keys(S.materials).reverse().find(has);
-  }
-
+  /* החומרים של כל פרשה יושבים בקובץ assets/p/<פרשה>/materials.json (אין קובץ — אין חומרים) */
+  const matsCache = {};
+  const getMats = id => matsCache[id] || (matsCache[id] = fetch(`assets/p/${id}/materials.json`, { cache: "no-cache" })
+    .then(r => r.ok ? r.json() : null).catch(() => null));
   function parashaBar() {
     const nav = (c, arrow, label) => c
       ? `<a class="pb-nav" href="${pageFile}${q(c.id)}" aria-label="${label}: ${esc(PR.names[c.id][0])}" title="${esc(PR.names[c.id][0])}">${arrow}</a>`
@@ -68,7 +65,7 @@
       const date = c.d ? `${+c.d.slice(8, 10)}.${+c.d.slice(5, 7)}` : "שמחת תורה";
       return `${head}<li><a class="pm-item${c.id === P.id ? " sel" : ""}" href="${pageFile}${q(c.id)}" data-k="${norm(name)}">
         <span class="pm-name">${esc(name)}</span>${c.id === thisWeek ? "<em>השבוע</em>" : ""}
-        ${S.materials[c.id] ? `<i class="pm-has" title="יש חומרים"></i>` : ""}<span class="pm-date">${date}</span></a></li>`;
+        <i class="pm-has" data-id="${c.id}" title="יש חומרים" hidden></i><span class="pm-date">${date}</span></a></li>`;
     }).join("");
     return `<div class="pmenu" id="pmenu" hidden role="dialog" aria-label="כל הפרשות">
       <div class="pm-box">
@@ -94,8 +91,13 @@
       });
       $("#pmEmpty").hidden = any;
     };
+    let probed = false;
     const open = e => {
       e.stopPropagation();
+      if (!probed) {
+        probed = true;
+        document.querySelectorAll(".pm-item .pm-has").forEach(dot => getMats(dot.dataset.id).then(m => { dot.hidden = !m; }));
+      }
       M.hidden = false; input.value = ""; filter();
       $(".pm-item.sel")?.scrollIntoView({ block: "center" });
       if (matchMedia("(hover: hover)").matches) setTimeout(() => input.focus(), 60);
@@ -340,19 +342,13 @@
   }
 
   /* ---------- "בקרוב": עוד אין חומרים לפרשה הזו ---------- */
-  function soonLink(topic) {
-    const id = latestWithMaterials(topic);
-    return id ? `<a class="soon-link" href="${pageFile}${q(id)}">בינתיים — לחומרים של פרשת ${esc(PR.names[id][0])} ←</a>` : "";
-  }
   function soonNote() {
-    const id = latestWithMaterials();
-    return `<p class="soon-note">החומרים יעלו בקרוב${id ? ` · <a class="soon-link" href="${pageFile}${q(id)}">לפרשת ${esc(PR.names[id][0])} ←</a>` : ""}</p>`;
+    return `<p class="soon-note">החומרים לפרשה הזו יעלו בקרוב</p>`;
   }
   function soonHTML(t) {
     return `<div class="soon-box">
       ${ic(t.icon, "ic soon-ic")}
       <h2>החומרים של ${esc(t.title)} לפרשת ${esc(P.name)} יעלו בקרוב</h2>
-      ${soonLink(t.id)}
     </div>`;
   }
 
@@ -536,13 +532,17 @@
     show(0);
   }
 
-  /* ---------- הפעלה ---------- */
+  /* ---------- הפעלה: טוענים את החומרים של הפרשה, ואז בונים את הדף ---------- */
   decorate();
-  if (!topicId) renderHome();
-  else {
-    const t = S.topics.find(x => x.id === topicId);
-    if (t) renderTopic(withMaterials(t)); else location.href = "index.html";
-  }
-  setupParashot();
-  bindFullscreen();
+  getMats(P.id).then(m => {
+    P.mats = m || {};
+    if (!topicId) renderHome();
+    else {
+      const t = S.topics.find(x => x.id === topicId);
+      if (!t) return void (location.href = "index.html");
+      renderTopic(withMaterials(t));
+    }
+    setupParashot();
+    bindFullscreen();
+  });
 })();
