@@ -7,6 +7,116 @@
   /* ---------- אייקון תלת־ממדי מתוך assets/icons ---------- */
   const ic = (name, cls = "ic") => `<img class="${cls}" src="assets/icons/${name}.png" alt="" aria-hidden="true">`;
 
+  /* ================= הפרשה: של השבוע (מתחלפת לבד ביום ראשון), או זו שהמורה בחרה ================= */
+  const PR = window.PARASHOT;
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  /* הפרשה של השבת הקרובה — מיום ראשון ועד שבת (כולל). שבת של חג מדלגת לפרשה הבאה */
+  function weekIndex(date = new Date()) {
+    const i = PR.weeks.findIndex(w => w[0] >= iso(date));
+    return i < 0 ? PR.weeks.length - 1 : i;
+  }
+  const nowIdx = weekIndex();
+  const thisWeek = PR.weeks[nowIdx][1];
+  /* מחזור הקריאה של השנה — מבראשית ועד וזאת הברכה */
+  const cycle = (() => {
+    let a = nowIdx, b = nowIdx + 1;
+    while (a > 0 && PR.weeks[a][1] !== "bereshit") a--;
+    while (b < PR.weeks.length && PR.weeks[b][1] !== "bereshit") b++;
+    return PR.weeks.slice(a, b).map(([d, id]) => ({ id, d })).concat({ id: PR.last, d: null });
+  })();
+  const chosen = new URLSearchParams(location.search).get("p");
+  const pid = chosen && PR.names[chosen] ? chosen : thisWeek;
+  const P = { id: pid, name: PR.names[pid][0], now: pid === thisWeek, idx: cycle.findIndex(c => c.id === pid), mats: S.materials[pid] || {} };
+  /* קישור לדף אחר שנשאר על אותה פרשה (בפרשת השבוע — בלי פרמטר, כדי שתתחלף לבד) */
+  const q = id => id === thisWeek ? "" : `?p=${id}`;
+  const pageFile = topicId ? `${topicId}.html` : "index.html";
+  const norm = s => s.replace(/[֑-ׇ]/g, "").replace(/[וי\s\-־"']/g, "");
+
+  /* הנושא עם החומרים של הפרשה שנבחרה. אין חומרים — "בקרוב" */
+  function withMaterials(t) {
+    const m = P.mats[t.id];
+    if (!m) return { ...t, soon: true, pages: [] };
+    const base = `assets/p/${P.id}/`;
+    return { ...t, ...m, pages: (m.pages || []).map(f => base + f), pdf: m.pdf && base + m.pdf, poster: m.poster && base + m.poster };
+  }
+  /* הפרשה הקרובה שיש לה כבר חומרים — לקישור "בינתיים" */
+  function latestWithMaterials(topic) {
+    const has = id => S.materials[id] && (!topic || S.materials[id][topic]);
+    const before = cycle.slice(0, Math.max(P.idx, 0)).reverse().find(c => has(c.id));
+    return before ? before.id : Object.keys(S.materials).reverse().find(has);
+  }
+
+  function parashaBar() {
+    const nav = (c, arrow, label) => c
+      ? `<a class="pb-nav" href="${pageFile}${q(c.id)}" aria-label="${label}: ${esc(PR.names[c.id][0])}" title="${esc(PR.names[c.id][0])}">${arrow}</a>`
+      : `<span class="pb-nav off" aria-hidden="true">${arrow}</span>`;
+    return `<div class="pbar">
+      ${nav(P.idx > 0 && cycle[P.idx - 1], "→", "הפרשה הקודמת")}
+      <button class="pb-name" id="pbOpen" title="כל הפרשות"><small>פרשת</small> ${esc(P.name)}${P.now ? "<em>השבוע</em>" : ""}</button>
+      ${nav(P.idx >= 0 && cycle[P.idx + 1], "←", "הפרשה הבאה")}
+      <button class="pb-search" id="pbSearch" aria-label="חיפוש פרשה" title="חיפוש פרשה">${ic("zoom")}</button>
+    </div>`;
+  }
+
+  /* תפריט כל הפרשות לפי הסדר, עם חיפוש לפי שם */
+  function parashaMenu() {
+    let book = -1;
+    const items = cycle.map(c => {
+      const [name, b] = PR.names[c.id];
+      const head = b !== book ? `<li class="pm-book">ספר ${PR.books[b]}</li>` : "";
+      book = b;
+      const date = c.d ? `${+c.d.slice(8, 10)}.${+c.d.slice(5, 7)}` : "שמחת תורה";
+      return `${head}<li><a class="pm-item${c.id === P.id ? " sel" : ""}" href="${pageFile}${q(c.id)}" data-k="${norm(name)}">
+        <span class="pm-name">${esc(name)}</span>${c.id === thisWeek ? "<em>השבוע</em>" : ""}
+        ${S.materials[c.id] ? `<i class="pm-has" title="יש חומרים"></i>` : ""}<span class="pm-date">${date}</span></a></li>`;
+    }).join("");
+    return `<div class="pmenu" id="pmenu" hidden role="dialog" aria-label="כל הפרשות">
+      <div class="pm-box">
+        <div class="pm-head">${ic("zoom")}<input id="pmSearch" type="search" placeholder="חיפוש פרשה לפי שם..." autocomplete="off" aria-label="חיפוש פרשה">
+          <button class="pm-close" id="pmClose" aria-label="סגירה">✕</button></div>
+        <ul class="pm-list">${items}</ul>
+        <p class="pm-empty" id="pmEmpty" hidden>לא נמצאה פרשה בשם הזה</p>
+        <p class="pm-legend"><i class="pm-has"></i> יש חומרים</p>
+      </div>
+    </div>`;
+  }
+  function setupParashot() {
+    document.body.insertAdjacentHTML("beforeend", parashaMenu());
+    const M = $("#pmenu"), input = $("#pmSearch");
+    const filter = () => {
+      const k = norm(input.value);
+      let any = false;
+      document.querySelectorAll(".pm-item").forEach(a => { const on = !k || a.dataset.k.includes(k); a.parentElement.hidden = !on; any = any || on; });
+      document.querySelectorAll(".pm-book").forEach(h => {
+        let n = h.nextElementSibling, vis = false;
+        for (; n && !n.classList.contains("pm-book"); n = n.nextElementSibling) vis = vis || !n.hidden;
+        h.hidden = !vis;
+      });
+      $("#pmEmpty").hidden = any;
+    };
+    const open = e => {
+      e.stopPropagation();
+      M.hidden = false; input.value = ""; filter();
+      $(".pm-item.sel")?.scrollIntoView({ block: "center" });
+      if (matchMedia("(hover: hover)").matches) setTimeout(() => input.focus(), 60);
+    };
+    const close = () => { M.hidden = true; };
+    input.addEventListener("input", filter);
+    input.addEventListener("keydown", e => {
+      if (e.key !== "Enter") return;
+      const a = [...document.querySelectorAll(".pm-item")].find(x => !x.parentElement.hidden);
+      if (a) location.href = a.href;
+    });
+    $("#pbOpen").addEventListener("click", open);
+    $("#pbSearch").addEventListener("click", open);
+    document.querySelectorAll(".pb-nav").forEach(a => a.addEventListener("click", e => e.stopPropagation()));
+    $("#pmClose").addEventListener("click", close);
+    M.addEventListener("click", e => { if (e.target === M) close(); });
+    document.addEventListener("keydown", e => { if (e.key === "Escape" && !M.hidden) close(); });
+    /* מסך שנשאר פתוח עד יום ראשון — עובר לבד לפרשה החדשה */
+    if (P.now) setInterval(() => { if (PR.weeks[weekIndex()][1] !== thisWeek) location.reload(); }, 30 * 60 * 1000);
+  }
+
   /* ---------- קישוטי רקע ---------- */
   function decorate() {
     const deco = document.createElement("div");
@@ -109,14 +219,15 @@
   }
 
   function renderHome() {
-    document.title = `אקטואלי בפרשה · ${S.parasha}`;
+    document.title = `אקטואלי בפרשה · פרשת ${P.name}`;
     document.body.classList.add("home");
-    const tiles = S.topics.map((t, i) => `
-      <a class="tile t-${t.id}" href="${t.id}.html" style="--i:${i}" aria-label="${esc(t.title)} — ${esc(t.tagline)}">
+    const tiles = S.topics.map(withMaterials).map((t, i) => `
+      <a class="tile t-${t.id}${t.soon ? " soon" : ""}" href="${t.id}.html${q(P.id)}" style="--i:${i}" aria-label="${esc(t.title)} — ${esc(t.tagline)}">
         <div class="tile-in">
           ${doodles(t.id)}
           <img class="char" src="${t.char}" alt="">
           <div class="tile-txt"><h2>${titleLines(t.title)}</h2>${ic(t.icon, "t-icon")}<p>${esc(t.tagline)}</p></div>
+          ${t.soon ? `<span class="soon-tag">בקרוב</span>` : ""}
           <span class="go">←</span>
           <span class="shine"></span>
         </div>
@@ -130,7 +241,8 @@
             <img class="brand-sm" src="assets/img/shalhevet.webp" alt="שלהבות חב&quot;ד">
             <div class="logo-wrap">
               <img class="logo" src="assets/img/logo.webp" alt="אקטואלי בפרשה">
-              <span class="parasha">פרשת ${esc(S.parasha)}</span>
+              ${parashaBar()}
+              ${Object.keys(P.mats).length ? "" : soonNote()}
             </div>
           </div>
         </div>
@@ -144,8 +256,8 @@
   /* ================= דף נושא — הכל במסך אחד, עם סרגל נושאים בצד ================= */
   function sideNav(cur) {
     return `<nav class="side-nav" aria-label="נושאים">
-      <a class="sn-btn" href="index.html">${ic("home")}<span>לדף הראשי</span></a>
-      ${S.topics.map((o, i) => `<a href="${o.id}.html" class="sn-item t-${o.id}${o === cur ? " cur" : ""}" style="--i:${i}"${o === cur ? ' aria-current="page"' : ""}>
+      <a class="sn-btn" href="index.html${q(P.id)}">${ic("home")}<span>לדף הראשי</span></a>
+      ${S.topics.map((o, i) => `<a href="${o.id}.html${q(P.id)}" class="sn-item t-${o.id}${o === cur ? " cur" : ""}" style="--i:${i}"${o === cur ? ' aria-current="page"' : ""}>
         <span class="sn-t">${esc(o.title)}</span><img class="sn-char" src="${o.char}" alt="">
       </a>`).join("")}
       <button class="sn-btn" id="fsBtn" title="מסך מלא">${ic("fullscreen")}<span>מסך מלא</span></button>
@@ -153,12 +265,12 @@
   }
 
   function renderTopic(t) {
-    document.title = `${t.title} · ${S.parasha} · אקטואלי בפרשה`;
+    document.title = `${t.title} · פרשת ${P.name} · אקטואלי בפרשה`;
     document.body.classList.add("topic");
     document.documentElement.style.setProperty("--c", t.color);
     document.documentElement.style.setProperty("--soft", t.soft);
     const letters = t.title.split(" ").map((w, i) => `<span class="letter" style="animation-delay:${.15 + i * .15}s">${esc(w)}</span>`).join(" ");
-    const fileName = `אקטואלי בפרשה - ${t.title} - ${S.parasha}.pdf`;
+    const fileName = `אקטואלי בפרשה - ${t.title} - ${P.name}.pdf`;
     const landscape = t.kind === "slides";
 
     const pages = t.pages.map((p, i) => `
@@ -172,10 +284,11 @@
 
     /* מה שמוצג בגוף הדף — כמה תצוגות עם לשוניות, כדי שהכל ייכנס במסך */
     const views = [];
-    if (t.kind === "video") views.push({ id: "video", label: "הסרטון", icon: "clapper", html: `<div class="video-frame"><span class="live-dot">LIVE</span>${videoHTML(t)}</div>` });
+    if (t.kind === "video" && !t.soon) views.push({ id: "video", label: "הסרטון", icon: "clapper", html: `<div class="video-frame"><span class="live-dot">LIVE</span>${videoHTML(t)}</div>` });
     if (t.game) views.push({ id: "game", label: "משחק בכיתה", icon: "gamepad", html: gameHTML(t.game) });
     if (t.studio) views.push({ id: "studio", label: "האולפן", icon: "mic", html: studioHTML(t) });
-    views.push({ id: "pages", label: t.pagesTitle || (landscape ? "השקופיות" : "הדפים להדפסה"), icon: landscape ? "present" : "print",
+    if (t.soon) views.push({ id: "soon", label: "בקרוב", icon: "sparkle", html: soonHTML(t) });
+    else views.push({ id: "pages", label: t.pagesTitle || (landscape ? "השקופיות" : "הדפים להדפסה"), icon: landscape ? "present" : "print",
       html: landscape ? sliderHTML(t) : `<div class="pages" style="--n:${t.pages.length}">${pages}</div>` });
     const tabs = views.length < 2 ? "" : `<div class="tabs" role="tablist">${views.map((v, i) =>
       `<button class="tab${i ? "" : " on"}" role="tab" data-v="${v.id}" aria-selected="${!i}">${ic(v.icon)} ${esc(v.label)}</button>`).join("")}</div>`;
@@ -188,15 +301,15 @@
             <svg class="doodle wig" viewBox="0 0 100 100" style="left:24%;top:12%;width:4.5vmin" aria-hidden="true">${DOODLE.star}</svg>
             <svg class="doodle" viewBox="0 0 100 100" style="left:30%;bottom:14%;width:3.5vmin" aria-hidden="true">${DOODLE.spark}</svg>
             <div class="tp-info">
-              <span class="eyebrow">${ic(t.icon)} פרשת ${esc(S.parasha)}</span>
+              ${parashaBar()}
               <h1>${letters}</h1>
               <p class="sub">${esc(t.tagline)}</p>
             </div>
             <div class="tp-actions">
               <div class="btns">
-                <button class="btn" id="presentBtn">${ic("present")} הצגה בכיתה</button>
-                <a class="btn light" href="${t.pdf}" download="${esc(fileName)}">${ic("download")} הורדה להדפסה</a>
-                <a class="btn light" href="${t.pdf}" target="_blank" rel="noopener">${ic("print")} פתיחת PDF</a>
+                ${t.soon && !t.studio ? "" : `<button class="btn" id="presentBtn">${ic("present")} הצגה בכיתה</button>`}
+                ${t.pdf ? `<a class="btn light" href="${t.pdf}" download="${esc(fileName)}">${ic("download")} הורדה להדפסה</a>
+                <a class="btn light" href="${t.pdf}" target="_blank" rel="noopener">${ic("print")} פתיחת PDF</a>` : ""}
               </div>
               ${tabs}
             </div>
@@ -226,6 +339,23 @@
     document.querySelectorAll(".view").forEach(v => { v.hidden = v.dataset.v !== id; });
   }
 
+  /* ---------- "בקרוב": עוד אין חומרים לפרשה הזו ---------- */
+  function soonLink(topic) {
+    const id = latestWithMaterials(topic);
+    return id ? `<a class="soon-link" href="${pageFile}${q(id)}">בינתיים — לחומרים של פרשת ${esc(PR.names[id][0])} ←</a>` : "";
+  }
+  function soonNote() {
+    const id = latestWithMaterials();
+    return `<p class="soon-note">החומרים יעלו בקרוב${id ? ` · <a class="soon-link" href="${pageFile}${q(id)}">לפרשת ${esc(PR.names[id][0])} ←</a>` : ""}</p>`;
+  }
+  function soonHTML(t) {
+    return `<div class="soon-box">
+      ${ic(t.icon, "ic soon-ic")}
+      <h2>החומרים של ${esc(t.title)} לפרשת ${esc(P.name)} יעלו בקרוב</h2>
+      ${soonLink(t.id)}
+    </div>`;
+  }
+
   /* ---------- סרטון: יוטיוב / וימאו / mp4, ובלי קישור — השקופית ---------- */
   function videoHTML(t) {
     const v = t.video || "";
@@ -241,7 +371,7 @@
   /* ---------- מצב הצגה ---------- */
   function presenterHTML(t) {
     return `<div class="presenter" id="presenter" role="dialog" aria-label="מצב הצגה">
-      <div class="p-title">${esc(t.title)} · ${esc(S.parasha)}</div>
+      <div class="p-title">${esc(t.title)} · פרשת ${esc(P.name)}</div>
       <button class="close" id="pClose" aria-label="סגירה">✕</button>
       <img class="slide-img" id="pImg" alt="">
       <div class="bar">
@@ -261,7 +391,7 @@
     };
     const open = n => { show(n); P.classList.add("open"); P.requestFullscreen?.().catch(() => {}); };
     const close = () => { P.classList.remove("open"); if (document.fullscreenElement) document.exitFullscreen(); };
-    $("#presentBtn").addEventListener("click", () => {
+    $("#presentBtn")?.addEventListener("click", () => {
       if (t.studio) { showView("studio"); toggleStudio(); return; }
       if (t.kind === "video") showView("video");
       const v = t.kind === "video" && $(".video-frame video, .video-frame iframe");
@@ -330,7 +460,7 @@
           <img src="assets/img/logo.webp" alt="אקטואלי בפרשה">
           <div class="eq" aria-hidden="true">${"<i></i>".repeat(11)}</div>
         </div>
-        <div class="studio-name">${esc(t.title)} · פרשת ${esc(S.parasha)}</div>
+        <div class="studio-name">${esc(t.title)} · פרשת ${esc(P.name)}</div>
       </div>
       <button class="studio-fs" id="studioFs">${ic("fullscreen")}<span>מסך מלא</span></button>
     </div>`;
@@ -411,7 +541,8 @@
   if (!topicId) renderHome();
   else {
     const t = S.topics.find(x => x.id === topicId);
-    if (t) renderTopic(t); else location.href = "index.html";
+    if (t) renderTopic(withMaterials(t)); else location.href = "index.html";
   }
+  setupParashot();
   bindFullscreen();
 })();
