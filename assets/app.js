@@ -37,7 +37,11 @@
     const m = P.mats[t.id];
     if (!m) return { ...t, soon: true, pages: [] };
     const base = `assets/p/${P.id}/`;
-    return { ...t, ...m, pages: (m.pages || []).map(f => base + f), pdf: m.pdf && base + m.pdf, poster: m.poster && base + m.poster };
+    /* "sections" — חלוקה של העמודים ללשוניות (למשל: המצגת / הכרטיסיות). בלי sections — לשונית אחת כמו תמיד */
+    const sections = Array.isArray(m.sections) && m.sections.length
+      ? m.sections.map(s => ({ ...s, pages: (s.pages || []).map(f => base + f) })) : null;
+    const pages = sections ? sections.flatMap(s => s.pages) : (m.pages || []).map(f => base + f);
+    return { ...t, ...m, sections, pages, pdf: m.pdf && base + m.pdf, poster: m.poster && base + m.poster };
   }
   /* החומרים של כל פרשה יושבים בקובץ assets/p/<פרשה>/materials.json (אין קובץ — אין חומרים) */
   const matsCache = {};
@@ -259,7 +263,7 @@
   function sideNav(cur) {
     return `<nav class="side-nav" aria-label="נושאים">
       <a class="sn-btn" href="index.html${q(P.id)}">${ic("home")}<span>לדף הראשי</span></a>
-      ${S.topics.map((o, i) => `<a href="${o.id}.html${q(P.id)}" class="sn-item t-${o.id}${o === cur ? " cur" : ""}" style="--i:${i}"${o === cur ? ' aria-current="page"' : ""}>
+      ${S.topics.map((o, i) => `<a href="${o.id}.html${q(P.id)}" class="sn-item t-${o.id}${o.id === cur.id ? " cur" : ""}" style="--i:${i}"${o.id === cur.id ? ' aria-current="page"' : ""}>
         <span class="sn-t">${esc(o.title)}</span><img class="sn-char" src="${o.char}" alt="">
       </a>`).join("")}
       <button class="sn-btn" id="fsBtn" title="מסך מלא">${ic("fullscreen")}<span>מסך מלא</span></button>
@@ -275,14 +279,17 @@
     const fileName = `אקטואלי בפרשה - ${t.title} - ${P.name}.pdf`;
     const landscape = t.kind === "slides";
 
-    const pages = t.pages.map((p, i) => `
-      <button class="page-thumb" data-i="${i}" aria-label="הצגת עמוד ${i + 1}">
+    const thumbs = (list, g) => list.map((p, i) => `
+      <button class="page-thumb" data-g="${g}" data-i="${i}" aria-label="הצגת עמוד ${i + 1}">
         <span class="pt-in">
           <img src="${p}" alt="${esc(t.title)} עמוד ${i + 1}">
           <span class="num">${i + 1}</span>
           <span class="zoom">${ic("zoom")} הצגה על המסך</span>
         </span>
       </button>`).join("");
+    /* קבוצות העמודים: מ-sections, או קבוצה אחת עם כל העמודים */
+    const defTitle = landscape ? "השקופיות" : "הדפים להדפסה";
+    const groups = t.sections || [{ title: t.pagesTitle || defTitle, pages: t.pages }];
 
     /* מה שמוצג בגוף הדף — כמה תצוגות עם לשוניות, כדי שהכל ייכנס במסך */
     const views = [];
@@ -290,8 +297,14 @@
     if (t.game) views.push({ id: "game", label: "משחק בכיתה", icon: "gamepad", html: gameHTML(t.game) });
     if (t.studio) views.push({ id: "studio", label: "האולפן", icon: "mic", html: studioHTML(t) });
     if (t.soon) views.push({ id: "soon", label: "בקרוב", icon: "sparkle", html: soonHTML(t) });
-    else views.push({ id: "pages", label: t.pagesTitle || (landscape ? "השקופיות" : "הדפים להדפסה"), icon: landscape ? "present" : "print",
-      html: landscape ? sliderHTML(t) : `<div class="pages" style="--n:${t.pages.length}">${pages}</div>` });
+    else groups.forEach((g, gi) => {
+      const land = g.kind ? g.kind === "slides" : landscape;
+      views.push({ id: gi ? `pages${gi}` : "pages", g: gi, edit: g.edit, label: g.title || defTitle, icon: land ? "present" : "print",
+        html: land ? sliderHTML(g.pages, t.title, gi) : `<div class="pages" style="--n:${g.pages.length}">${thumbs(g.pages, gi)}</div>` });
+    });
+    /* כפתור "תבנית לעריכה": קישור לתבנית בקנבה — של הלשונית הפתוחה, או של כל הנושא */
+    const editOf = v => (v && v.edit) || t.edit || "";
+    TOPIC = { views, editOf };
     const tabs = views.length < 2 ? "" : `<div class="tabs" role="tablist">${views.map((v, i) =>
       `<button class="tab${i ? "" : " on"}" role="tab" data-v="${v.id}" aria-selected="${!i}">${ic(v.icon)} ${esc(v.label)}</button>`).join("")}</div>`;
 
@@ -312,12 +325,13 @@
                 ${t.soon && !t.studio ? "" : `<button class="btn" id="presentBtn">${ic("present")} הצגה בכיתה</button>`}
                 ${t.pdf ? `<a class="btn light" href="${t.pdf}" download="${esc(fileName)}">${ic("download")} הורדה להדפסה</a>
                 <a class="btn light" href="${t.pdf}" target="_blank" rel="noopener">${ic("print")} פתיחת PDF</a>` : ""}
+                ${views.some(editOf) ? `<a class="btn light" id="editBtn" href="${esc(editOf(views[0]) || "#")}" target="_blank" rel="noopener"${editOf(views[0]) ? "" : ' style="display:none"'}>${ic("sparkle")} תבנית לעריכה</a>` : ""}
               </div>
               ${tabs}
             </div>
             <img class="tp-char" src="${t.char}" alt="">
           </section>
-          <section class="tp-body">${views.map((v, i) => `<div class="view view-${v.id}" data-v="${v.id}"${i ? " hidden" : ""}>${v.html}</div>`).join("")}</section>
+          <section class="tp-body">${views.map((v, i) => `<div class="view view-${v.g ? "pages" : v.id}" data-v="${v.id}" data-g="${v.g || 0}"${i ? " hidden" : ""}>${v.html}</div>`).join("")}</section>
         </main>
       </div>
       ${presenterHTML(t)}`);
@@ -331,15 +345,18 @@
     if (matchMedia("(max-width: 760px)").matches) { const nav = $(".side-nav"), cur = $(".sn-item.cur"); nav.scrollLeft = cur.offsetLeft - (nav.clientWidth - cur.offsetWidth) / 2; }
     new ResizeObserver(fit).observe(body);
     document.querySelectorAll(".page-thumb").forEach((p, i) => setTimeout(() => p.classList.add("in"), 350 + i * 120));
-    const present = setupPresenter(t);
-    if (landscape) setupSlider(t, present);
+    const present = setupPresenter(t, groups);
+    document.querySelectorAll(".slider").forEach(box => { const g = groups[+box.dataset.g]; setupSlider(box, g.pages, t.title, n => present(n, g.pages)); });
     if (t.game) setupGame(t.game);
     if (t.studio) setupStudio();
   }
   function showView(id) {
     document.querySelectorAll(".tab").forEach(b => { const on = b.dataset.v === id; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
     document.querySelectorAll(".view").forEach(v => { v.hidden = v.dataset.v !== id; });
+    const eb = $("#editBtn");
+    if (eb && TOPIC) { const url = TOPIC.editOf(TOPIC.views.find(v => v.id === id)); eb.style.display = url ? "" : "none"; if (url) eb.href = url; }
   }
+  let TOPIC = null;
 
   /* ---------- "בקרוב": עוד אין חומרים לפרשה הזו ---------- */
   function soonNote() {
@@ -377,15 +394,17 @@
       </div>
     </div>`;
   }
-  function setupPresenter(t) {
+  function setupPresenter(t, groups) {
     const P = $("#presenter"), img = $("#pImg");
-    let i = 0;
+    let i = 0, list = t.pages;
     const show = n => {
-      i = (n + t.pages.length) % t.pages.length;
-      img.src = t.pages[i]; img.classList.remove("anim"); void img.offsetWidth; img.classList.add("anim");
-      $("#pCount").textContent = `${i + 1} / ${t.pages.length}`;
+      if (!list.length) return;
+      i = (n + list.length) % list.length;
+      img.src = list[i]; img.classList.remove("anim"); void img.offsetWidth; img.classList.add("anim");
+      $("#pCount").textContent = `${i + 1} / ${list.length}`;
     };
-    const open = n => { show(n); P.classList.add("open"); P.requestFullscreen?.().catch(() => {}); };
+    /* מציגים רק את העמודים של הלשונית שממנה פתחו */
+    const open = (n, pages = t.pages) => { list = pages; show(n); P.classList.add("open"); P.requestFullscreen?.().catch(() => {}); };
     const close = () => { P.classList.remove("open"); if (document.fullscreenElement) document.exitFullscreen(); };
     $("#presentBtn")?.addEventListener("click", () => {
       if (t.studio) { showView("studio"); toggleStudio(); return; }
@@ -393,9 +412,14 @@
       const v = t.kind === "video" && $(".video-frame video, .video-frame iframe");
       if (v) { v.requestFullscreen?.().catch(() => {}); v.play?.(); }
       else if (t.kind === "video") { P.classList.add("open"); img.src = t.poster; $("#pCount").textContent = ""; P.requestFullscreen?.().catch(() => {}); }
-      else open(+($(".slider")?.dataset.i || 0));
+      else {
+        const vis = $(".view:not([hidden])");
+        const g = (groups && groups[+(vis?.dataset.g || 0)]) || { pages: t.pages };
+        open(+($(".slider", vis || document)?.dataset.i || 0), g.pages);
+      }
     });
-    document.querySelectorAll(".page-thumb").forEach(b => b.addEventListener("click", () => open(+b.dataset.i)));
+    document.querySelectorAll(".page-thumb").forEach(b => b.addEventListener("click", () =>
+      open(+b.dataset.i, (groups && groups[+b.dataset.g] || { pages: t.pages }).pages)));
     $("#pClose").addEventListener("click", close);
     $("#pNext").addEventListener("click", () => show(i + 1));
     $("#pPrev").addEventListener("click", () => show(i - 1));
@@ -411,34 +435,35 @@
   }
 
   /* ---------- שקופיות: אחת גדולה במסך, ומעבר בין השקופיות ---------- */
-  function sliderHTML(t) {
-    const many = t.pages.length > 1;
-    return `<div class="slider" data-i="0">
-      ${many ? `<button class="sl-nav" id="slPrev" aria-label="השקופית הקודמת">→</button>` : ""}
-      <button class="sl-stage" id="slStage" aria-label="הצגה על המסך">
-        <img id="slImg" src="${t.pages[0]}" alt="${esc(t.title)} שקופית 1">
+  /* כל לשונית של שקופיות מקבלת סליידר משלה (g = מספר הלשונית) */
+  function sliderHTML(pages, title, g = 0) {
+    const many = pages.length > 1;
+    return `<div class="slider" data-i="0" data-g="${g}">
+      ${many ? `<button class="sl-nav sl-prev" style="grid-column:1;grid-row:1" aria-label="השקופית הקודמת">→</button>` : ""}
+      <button class="sl-stage" aria-label="הצגה על המסך">
+        <img class="sl-img" src="${pages[0]}" alt="${esc(title)} שקופית 1">
         <span class="zoom">${ic("zoom")} הצגה על המסך</span>
       </button>
-      ${many ? `<button class="sl-nav" id="slNext" aria-label="השקופית הבאה">←</button>
-      <div class="sl-thumbs">${t.pages.map((p, i) => `<button class="sl-th${i ? "" : " on"}" data-i="${i}" aria-label="שקופית ${i + 1}"><img src="${p}" alt=""><b>${i + 1}</b></button>`).join("")}</div>` : ""}
+      ${many ? `<button class="sl-nav sl-next" style="grid-column:3;grid-row:1" aria-label="השקופית הבאה">←</button>
+      <div class="sl-thumbs">${pages.map((p, i) => `<button class="sl-th${i ? "" : " on"}" data-i="${i}" aria-label="שקופית ${i + 1}"><img src="${p}" alt=""><b>${i + 1}</b></button>`).join("")}</div>` : ""}
     </div>`;
   }
-  function setupSlider(t, present) {
-    const box = $(".slider"), img = $("#slImg");
+  function setupSlider(box, pages, title, present) {
+    const img = $(".sl-img", box);
     let i = 0;
     const go = n => {
       const dir = n > i ? 1 : -1;
-      i = (n + t.pages.length) % t.pages.length;
+      i = (n + pages.length) % pages.length;
       box.dataset.i = i;
-      img.src = t.pages[i]; img.alt = `${t.title} שקופית ${i + 1}`;
+      img.src = pages[i]; img.alt = `${title} שקופית ${i + 1}`;
       img.style.setProperty("--dir", dir);
       img.classList.remove("swap"); void img.offsetWidth; img.classList.add("swap");
-      document.querySelectorAll(".sl-th").forEach(b => b.classList.toggle("on", +b.dataset.i === i));
+      box.querySelectorAll(".sl-th").forEach(b => b.classList.toggle("on", +b.dataset.i === i));
     };
-    $("#slStage").addEventListener("click", () => present(i));
-    $("#slPrev")?.addEventListener("click", () => go(i - 1));
-    $("#slNext")?.addEventListener("click", () => go(i + 1));
-    document.querySelectorAll(".sl-th").forEach(b => b.addEventListener("click", () => go(+b.dataset.i)));
+    $(".sl-stage", box).addEventListener("click", () => present(i));
+    $(".sl-prev", box)?.addEventListener("click", () => go(i - 1));
+    $(".sl-next", box)?.addEventListener("click", () => go(i + 1));
+    box.querySelectorAll(".sl-th").forEach(b => b.addEventListener("click", () => go(+b.dataset.i)));
     document.addEventListener("keydown", e => {
       if ($("#presenter").classList.contains("open") || box.closest(".view").hidden) return;
       if (e.key === "ArrowLeft") go(i + 1);
