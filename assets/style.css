@@ -624,3 +624,8 @@ body.studio-max .side-nav, body.studio-max .tp-head, body.studio-max .bg-deco, b
   .page-thumb { opacity: 1; transform: none; }
   .doodle path, .doodle circle, .doodle polyline { stroke-dashoffset: 0; }
 }
+
+/* השקופית הגדולה תמיד נכנסת בגובה שנשאר, גם במסכים נמוכים, ולא עולה על שורת התמונות הקטנות */
+@media (min-width: 761px) and (min-height: 421px) {
+  .sl-stage img { position: absolute; inset: 0; margin: auto; max-width: 100%; max-height: 100%; }
+}
