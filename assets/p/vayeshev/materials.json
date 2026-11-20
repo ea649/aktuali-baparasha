@@ -1,0 +1,52 @@
+{
+  "pgisha": {
+    "pages": ["pgisha-m1.jpg", "pgisha-m2.jpg", "pgisha-m3.jpg", "pgisha-m4.jpg", "pgisha-m5.jpg", "pgisha-m6.jpg", "pgisha-m7.jpg", "pgisha-m8.jpg", "pgisha-1.jpg", "pgisha-2.jpg", "pgisha-3.jpg", "pgisha-4.jpg", "pgisha-5.jpg", "pgisha-6.jpg", "pgisha-7.jpg", "pgisha-8.jpg"],
+    "sections": [
+      { "title": "המצגת", "pages": ["pgisha-m1.jpg", "pgisha-m2.jpg", "pgisha-m3.jpg", "pgisha-m4.jpg", "pgisha-m5.jpg", "pgisha-m6.jpg", "pgisha-m7.jpg", "pgisha-m8.jpg"], "edit": "https://notebook.google.com/notebook/79fd7b77-4184-4e7b-998d-d656303e6aba" },
+      { "title": "הכרטיסיות", "pages": ["pgisha-1.jpg", "pgisha-2.jpg", "pgisha-3.jpg", "pgisha-4.jpg", "pgisha-5.jpg", "pgisha-6.jpg", "pgisha-7.jpg", "pgisha-8.jpg"], "edit": "https://www.canva.com/design/DAHbYz6Q3qw/edit" }
+    ],
+    "pdf": "pgisha.pdf"
+  },
+  "play": {
+    "pages": ["play-1.jpg", "play-2.jpg", "play-3.jpg", "play-4.jpg", "play-5.jpg"],
+    "pdf": "play.pdf",
+    "edit": "https://www.canva.com/design/DAHbY6tTWhE/edit",
+    "game": {
+      "intro": "המורה מקריאה 5 משפטים על הפרשה. הילדים מסמנים באגודל: למעלה = נכון, למטה = לא נכון.",
+      "instruction": "כולם מראים באגודל.",
+      "items": [
+        { "q": "יעקב נתן ליוסף כתונת פסים.", "a": true, "note": "נכון." },
+        { "q": "יוסף חלם שהשמש, הירח ואחד עשר כוכבים משתחווים לו.", "a": true, "note": "נכון." },
+        { "q": "ראובן הציע לאחים למכור את יוסף לישמעאלים.", "a": false, "note": "לא נכון. יהודה הציע למכור את יוסף לישמעאלים, וראובן ניסה להציל אותו." },
+        { "q": "יוסף נמכר במצרים לפוטיפר, שר הטבחים של פרעה.", "a": true, "note": "נכון." },
+        { "q": "שר המשקים זכר את יוסף מיד כשיצא מבית הסוהר.", "a": false, "note": "לא נכון. שר המשקים שכח את יוסף, ורק אחרי שנתיים נזכר בו." }
+      ]
+    }
+  },
+  "live": {
+    "video": "https://www.youtube.com/watch?v=4TZ0pewbRGU",
+    "poster": "live-1.jpg",
+    "pages": ["ikvot-1.jpg"],
+    "pagesTitle": "דף עבודה: בעקבות הפרשה",
+    "pdf": "ikvot.pdf",
+    "edit": "https://www.canva.com/design/DAHbY11XucY/edit"
+  },
+  "aluf": {
+    "tagline": "תפזורת יוסף: מוצאים 9 מילים ומגלים שאלה סודית",
+    "pages": ["aluf-1.jpg"],
+    "pdf": "aluf.pdf",
+    "edit": "https://www.canva.com/design/DAHbY3AveUE/edit"
+  },
+  "podcast": {
+    "tagline": "ראיון עם יוסף ודף המאזינים",
+    "pages": ["podcast-1.jpg", "podcast-2.jpg"],
+    "pdf": "podcast.pdf",
+    "edit": "https://www.canva.com/design/DAHbY0J9HQI/edit"
+  },
+  "ted": {
+    "tagline": "טקסט למשפחה, משחק הרגשות ופתקי הרגשות לגזירה",
+    "pages": ["ted-1.jpg", "ted-2.jpg"],
+    "pdf": "ted.pdf",
+    "edit": "https://www.canva.com/design/DAHbY6v8eUw/edit"
+  }
+}
